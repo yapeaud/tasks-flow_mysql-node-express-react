@@ -1,12 +1,19 @@
 import { query } from '../config/db.js';
+import { randomUUID } from 'crypto';
 
-export const TaskRepository = {
+const VALID_STATUSES = ['todo', 'in_progress', 'done'];
+
+const TaskRepository = {
+
     // Créer une tâche
-    create: async (title, description, userId, completed = false) => {
+    create: async (title, description, userId, status = 'todo') => {
+        const safeStatus = VALID_STATUSES.includes(status) ? status : 'todo';
+        const isCompleted = safeStatus === 'done';
+        const id = randomUUID();
         const result = await query(
-            `INSERT INTO tasks (title, description, user_id, completed) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-            [title, description, userId, completed]
+            `INSERT INTO "Task" (id, title, description, "userId", "isCompleted", status, "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
+            [id, title, description || null, userId, isCompleted, safeStatus]
         );
         return result.rows[0];
     },
@@ -14,59 +21,75 @@ export const TaskRepository = {
     // Trouver toutes les tâches d'un utilisateur
     findByUserId: async (userId, filters = {}) => {
         let sql = `
-      SELECT t.*, u.email as user_email 
-      FROM tasks t 
-      LEFT JOIN users u ON t.user_id = u.id 
-      WHERE t.user_id = $1
-    `;
+            SELECT *
+            FROM "Task"
+            WHERE "userId" = $1
+        `;
         const params = [userId];
         let paramIndex = 2;
 
-        // Filtre optionnel : completed
-        if (filters.completed !== undefined) {
-            sql += ` AND t.completed = $${paramIndex}`;
-            params.push(filters.completed);
+        if (filters.status && VALID_STATUSES.includes(filters.status)) {
+            sql += ` AND status = $${paramIndex}`;
+            params.push(filters.status);
             paramIndex++;
         }
 
-        sql += ' ORDER BY t.created_at DESC';
+        sql += ' ORDER BY "createdAt" DESC';
 
         const result = await query(sql, params);
         return result.rows;
     },
 
-    // Trouver par ID
+    // Trouver par ID et userId
     findById: async (id, userId) => {
         const result = await query(
-            `SELECT t.*, u.email as user_email FROM tasks t LEFT JOIN users u ON t.user_id = u.id WHERE t.id = $1 AND t.user_id = $2`,
+            `SELECT * FROM "Task" WHERE id = $1 AND "userId" = $2`,
             [id, userId]
         );
-        return result.rows[0];
+        return result.rows[0] || null;
     },
 
-    // Mettre à jour
+    // Mettre à jour une tâche
     update: async (id, userId, updates) => {
-        const fields = Object.keys(updates);
-        const values = Object.values(updates);
-        const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+        // Map snake_case incoming keys to Prisma camelCase column names
+        const columnMap = {
+            title: 'title',
+            description: 'description',
+            status: 'status',
+            completed: 'isCompleted',
+            isCompleted: 'isCompleted',
+            due_date: 'dueDate',
+            dueDate: 'dueDate',
+        };
+
+        const filtered = Object.entries(updates)
+            .map(([k, v]) => [columnMap[k], v])
+            .filter(([k]) => k !== undefined);
+
+        if (filtered.length === 0) return null;
+
+        const fields = filtered.map(([k]) => k);
+        const values = filtered.map(([, v]) => v);
+
+        const setClause = fields.map((field, i) => `"${field}" = $${i + 1}`).join(', ');
 
         const result = await query(
-            `UPDATE tasks SET ${setClause}, updated_at = NOW() 
-        WHERE id = $${fields.length + 1} AND user_id = $${fields.length + 2} 
-       RETURNING *`,
+            `UPDATE "Task" SET ${setClause}, "updatedAt" = NOW()
+             WHERE id = $${fields.length + 1} AND "userId" = $${fields.length + 2}
+             RETURNING *`,
             [...values, id, userId]
         );
-        return result.rows[0];
+        return result.rows[0] || null;
     },
 
-    // Supprimer
+    // Supprimer une tâche
     delete: async (id, userId) => {
         const result = await query(
-            'DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING id',
+            'DELETE FROM "Task" WHERE id = $1 AND "userId" = $2 RETURNING id',
             [id, userId]
         );
         return result.rowCount > 0;
-    }
+    },
 };
 
 export default TaskRepository;

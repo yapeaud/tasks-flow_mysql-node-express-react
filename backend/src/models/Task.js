@@ -1,18 +1,15 @@
 /**
- * Modèle Task pour la gestion des statuts et la validation
+ * Modèle Task – validation, statuts et formatage de la réponse API
  */
 class Task {
-    // Constantes de statut (alignées avec l'énum Prisma)
     static STATUS = {
         TODO: 'todo',
         IN_PROGRESS: 'in_progress',
-        DONE: 'done'
+        DONE: 'done',
     };
 
     /**
      * Valider les données d'une tâche
-     * @param {Object} data - Données de la tâche (title, userId, status)
-     * @returns {Object} - Resultat de validation { isValid: boolean, error: string }
      */
     static validate(data) {
         if (!data.title || data.title.trim().length === 0) {
@@ -22,24 +19,36 @@ class Task {
             return { isValid: false, error: 'Statut invalide' };
         }
         if (!data.userId) {
-            return { isValid: false, error: 'L\'ID utilisateur est obligatoire' };
+            return { isValid: false, error: "L'ID utilisateur est obligatoire" };
         }
         return { isValid: true };
     }
 
     /**
      * Formater une tâche pour la réponse API
-     * @param {Object} task - Objet tâche brut
-     * @returns {Object} - Tâche formatée
      */
     static format(task) {
         if (!task) return null;
+
+        // Status : préférer le champ status de la DB, sinon dériver de completed
+        const completed = task.completed ?? task.isCompleted;
+        const status =
+            task.status && Object.values(this.STATUS).includes(task.status)
+                ? task.status
+                : completed
+                ? this.STATUS.DONE
+                : this.STATUS.TODO;
+
         return {
-            ...task,
-            isCompleted: task.completed || task.status === this.STATUS.DONE,
-            // S'assurer que les dates sont bien au format ISO si présentes
-            createdAt: task.created_at || task.createdAt,
-            updatedAt: task.updated_at || task.updatedAt
+            id: task.id,
+            title: task.title,
+            description: task.description || null,
+            status,
+            isCompleted: status === this.STATUS.DONE,
+            dueDate: task.due_date || task.dueDate || null,
+            createdAt: task.created_at || task.createdAt || null,
+            updatedAt: task.updated_at || task.updatedAt || null,
+            userId: task.user_id || task.userId,
         };
     }
 }

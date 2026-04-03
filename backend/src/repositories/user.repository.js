@@ -1,11 +1,13 @@
 import { query } from '../config/db.js';
+import { randomUUID } from 'crypto';
 
 export const UserRepository = {
     // Créer un utilisateur
     create: async (email, password, name = null) => {
+        const id = randomUUID();
         const result = await query(
-            'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING *',
-            [email, password, name]
+            'INSERT INTO "User" (id, email, password, name, "updatedAt") VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
+            [id, email, password, name]
         );
         return result.rows[0];
     },
@@ -13,7 +15,7 @@ export const UserRepository = {
     // Trouver par email
     findByEmail: async (email) => {
         const result = await query(
-            'SELECT * FROM users WHERE email = $1',
+            'SELECT * FROM "User" WHERE email = $1',
             [email]
         );
         return result.rows[0];
@@ -22,7 +24,7 @@ export const UserRepository = {
     // Trouver par ID
     findById: async (id) => {
         const result = await query(
-            'SELECT id, email, name, created_at, updated_at FROM users WHERE id = $1',
+            'SELECT id, email, name, "createdAt", "updatedAt" FROM "User" WHERE id = $1',
             [id]
         );
         return result.rows[0];
@@ -32,10 +34,10 @@ export const UserRepository = {
     update: async (id, updates) => {
         const fields = Object.keys(updates);
         const values = Object.values(updates);
-        const setClause = fields.map((field, index) => `${field} = $${index + 1}`).join(', ');
+        const setClause = fields.map((field, index) => `"${field}" = $${index + 1}`).join(', ');
 
         const result = await query(
-            `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${fields.length + 1} RETURNING *`,
+            `UPDATE "User" SET ${setClause}, "updatedAt" = NOW() WHERE id = $${fields.length + 1} RETURNING *`,
             [...values, id]
         );
         return result.rows[0];
@@ -44,7 +46,7 @@ export const UserRepository = {
     // Trouver par ID (incluant le mot de passe pour vérification)
     findByIdWithPassword: async (id) => {
         const result = await query(
-            'SELECT * FROM users WHERE id = $1',
+            'SELECT * FROM "User" WHERE id = $1',
             [id]
         );
         return result.rows[0];
@@ -53,25 +55,23 @@ export const UserRepository = {
     // Mettre à jour le mot de passe
     updatePassword: async (id, hashedPassword) => {
         const result = await query(
-            'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
+            'UPDATE "User" SET password = $1, "updatedAt" = NOW() WHERE id = $2 RETURNING id',
             [hashedPassword, id]
         );
         return result.rows[0];
     },
 
-    // Mettre à jour le refresh token
+    // Mettre à jour le refresh token (colonne non implémentée dans le schéma actuel)
     updateRefreshToken: async (id, refreshTokenHash) => {
-        const result = await query(
-            'UPDATE users SET refresh_token = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
-            [refreshTokenHash, id]
-        );
-        return result.rows[0];
+        // La colonne refresh_token n'existe pas encore dans la base de données.
+        // Pour l'activer, ajouter la colonne via une migration Prisma.
+        return null;
     },
 
     // Supprimer
     delete: async (id) => {
         const result = await query(
-            'DELETE FROM users WHERE id = $1 RETURNING id',
+            'DELETE FROM "User" WHERE id = $1 RETURNING id',
             [id]
         );
         return result.rowCount > 0;

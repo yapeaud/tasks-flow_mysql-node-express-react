@@ -47,7 +47,7 @@ export const register = async (req, res) => {
         });
 
         // Optionnel: Stocker le refresh token
-        await UserRepository.updateRefreshToken(user.id, await User.hashPassword(refreshToken));
+        // await UserRepository.updateRefreshToken(user.id, await User.hashPassword(refreshToken));
 
         // 6. Envoyer la réponse (santisée via le modèle User)
         res.status(201).json({

@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
         if (!res.ok) {
             throw new Error(data.message || 'Connexion échouée');
         }
-        saveSession(data.user, data.token);
+        saveSession(data.data.user, data.data.tokens.accessToken);
     }
 
     // Fonction d'inscription qui envoie les informations à l'API et gère la réponse
@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
         if (!res.ok) {
             throw new Error(data.message || "Inscription échouée");
         }
-        saveSession(data.user, data.token);
+        saveSession(data.data.user, data.data.tokens.accessToken);
     }
 
     const value = {

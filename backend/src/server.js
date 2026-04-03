@@ -1,7 +1,8 @@
 // server.js
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 import app from './app.js';
 import { connectDB, pool } from './config/db.js';
+import { runMigrations } from './config/migrate.js';
 
 dotenv.config();
 
@@ -10,6 +11,7 @@ const PORT = process.env.PORT;
 const startServer = async () => {
     try {
         await connectDB();
+        await runMigrations();   // ← ajoute la colonne status si absente
 
         app.listen(PORT, () => {
             console.log(`🚀 Serveur démarré sur le port ${PORT}`);
@@ -23,10 +25,10 @@ const startServer = async () => {
 
 startServer();
 
-// Arrêt gracieux : fermer le pool proprement
+// Arrêt gracieux
 process.on('SIGINT', async () => {
     console.log('\n🛑 Arrêt du serveur...');
-    await pool.end(); // Ferme toutes les connexions du pool
+    await pool.end();
     console.log('🔌 Pool PostgreSQL fermé');
     process.exit(0);
 });
