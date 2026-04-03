@@ -14,8 +14,8 @@ const startServer = async () => {
         await runMigrations();   // ← ajoute la colonne status si absente
 
         app.listen(PORT, () => {
-            console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-            console.log(`🔗 API disponible sur http://localhost:${PORT}`);
+            console.log(`🚀 Serveur démarré sur le port ${PORT || 10000}`);
+            console.log(`🔗 API disponible sur http://localhost:${PORT || 10000}`);
         });
     } catch (error) {
         console.error('❌ Échec du démarrage du serveur:', error);
